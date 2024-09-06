@@ -13,7 +13,6 @@ It performs the following cmds :
 > All this output is saved on files contained in `rce-<md5>` so you will never have to run them again :)
 > You can skip each part of the script if you want to.
 
-
 Enjoy !
 
 # Install
@@ -43,26 +42,14 @@ Royal Context Evaluator : a script for lazy hackers
 Enjoy it little hacker ( ͡° ͜ʖ ͡°)
 ```
 
+## Next ?
+
+- sn0int
+
 # Example
 
 > Confidential
 
 # Contact
 
-Real hackers have no contact with anyone.
-# RCE
-
-Royal Context Evaluator: A script to automatise basic enumeration at the beginning of a pentest.
-
-## Doing
-
-- Nmap : `nmap -sS -sU -sV -O -p1-10000 "$DOMAIN"` ;
-- DNS request : `dig ANY @8.8.8.8 "$DOMAIN"` ;
-- TLS check : `openssl s_client -showcerts -connect "$DOMAIN:443" </dev/null` ;
-- Crawler : `Qcrawl -sf -ua "$USER_AGENT" -u "https://$DOMAIN/"` ;
-- Fuzzer for path discovery : `ffuf -c -r -H "User-Agent: $USER_AGENT" -w "$WORDLIST" -u "https://$DOMAIN/FUZZ"`.
-
-## Next ?
-
-- sn0int
-- 
+Real hackers have no contact with anyone. 
