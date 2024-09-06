@@ -1,4 +1,5 @@
 #!/bin/bash
+# 
 
 # Colors
 RED='\033[0;31m'
@@ -113,10 +114,10 @@ Enjoy it little hacker ( ͡° ͜ʖ ͡°)"""
     exit 1
 fi
 
-if [ "$UID" -ne 0 ]; then
-    echo -e "${RED}[error]${NC} You must run this as root user."
-    exit 1
-fi
+# if [ "$UID" -ne 0 ]; then
+#     echo -e "${RED}[error]${NC} You must run this as root user."
+#     exit 1
+# fi
 
 if [ -z "$DOMAIN" ]; then
     echo -e "${RED}[error]${NC} Domain must be set with -d or --domain "
@@ -161,13 +162,13 @@ res=${res,,}
 
 if [[ "$res" == "y" ]]; then
     echo -e "${YELLOW}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
-    nmap -sS -sV -O -e "$INTERFACE" -p1-100 "$DOMAIN" | tee "$OUTPUT/nmap.txt"
+    sudo nmap -sS -sV -O -e "$INTERFACE" -p1-100 "$DOMAIN" | tee "$OUTPUT/nmap.txt"
 fi
 
 
 # === dig ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} dig ANY '$DOMAIN'"
+echo -ne "${YELLOW}[rce]${NC} dig ANY @8.8.8.8 '$DOMAIN'"
 read -p " [y/N] " res
 res=${res,,}
 
@@ -283,4 +284,6 @@ if [[ "$res" == "y" ]]; then
     echo -e "${YELLOW}[rce]${NC} Starting ffuf - ($OUTPUT/ffuf.txt)"
     bash -c "$ffuf" | tee "$OUTPUT/ffuf.txt"
 fi
+
+sudo chown -R $(whoami):$(whoami) "$OUTPUT"
 
