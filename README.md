@@ -4,11 +4,14 @@ Github for RCE: Royal Context Evaluator. This script will run basics cmds when s
 Output is quite colored :)
 
 It performs the following cmds :
-- nmap : `nmap -sS -sU -sV -O -p1-10000 DOMAIN`.
-- dig  : `dig ANY DOMAIN`.
-- review cert : `openssl s_client -showcerts -connect DOMAIN:443 </dev/null`.
-- Qcrawl : `Qcrawl -sf -ua 'Mozilla/5.0 Firefox/126.0' -u 'https://DOMAIN/`
-- ffuf : `ffuf -c -r -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w 'WORDLIST' -u 'https://DOMAIN/FUZZ'`
+- nmap : `nmap -oN "$OUTPUT/nmap.txt" -sSV -p- "$DOMAIN"` ;
+- dnsx  : `echo "$DOMAIN" | dnsx -silent -recon -r '8.8.8.8' | tee "$OUTPUT/dns.txt"` ;
+- Subfinder : `subfinder -silent -d "$DOMAIN" -all | sort -uV | tee "$OUTPUT/domains.txt"` (+ dnsx) ;
+- review cert : `openssl s_client -showcerts -connect "$DOMAIN:443" </dev/null | tee "$OUTPUT/openssl.txt"` ;
+- Httpx for simple http enum : `httpx -u "$DOMAIN" -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 -silent | tee "$OUTPUT/technos.txt"` ;
+- Katana : `katana -u "$DOMAIN" -js-crawl -jsluice -kf all -passive -fs fqdn -silent | sort -uV | tee "$OUTPUT/crawl.txt"` ;
+- Katana (+ httpx ) : `cat "$OUTPUT/crawl.txt" | httpx -status-code -cl -tech-detect -silent | tee "$OUTPUT/crawl.txt"` ;
+- ffuf : `ffuf -c -r -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w '$WORDLIST' -u 'https://DOMAIN/FUZZ'`.
 
 > All this output is saved on files contained in `rce-<md5>` so you will never have to run them again :)
 > You can skip each part of the script if you want to.

@@ -112,31 +112,55 @@ if [ -z "$USER_AGENT" ]; then
 fi
 
 if [ -z "$WORDLIST" ]; then
-    WORDLIST="$(which rce | sed -E 's/.* (.+)$/\1/')/dist/common-custom.txt"
+    # WORDLIST="$(which rce | sed -E 's/.* (.+)$/\1/')/dist/common-custom.txt"
+    WORDLIST="/home/tklingler/_Tests/RCE/dist/common-custom.txt"
 fi
 
 
 # === NMAP ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} nmap -sS -sU -sV -O -p1-10000 '$DOMAIN'"
+echo -ne "${YELLOW}[rce]${NC} nmap -oN "$OUTPUT/nmap.txt" -sSV -p- '$DOMAIN'"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
     echo -e "${YELLOW}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
-    sudo nmap -sS -sV -O -e "$INTERFACE" -p1-100 "$DOMAIN" | tee "$OUTPUT/nmap.txt"
+    sudo nmap -oN "$OUTPUT/nmap.txt" -sSV -p- "$DOMAIN"
 fi
 
 
-# === dig ===
+# === dnsx ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} dig ANY @8.8.8.8 '$DOMAIN'"
+echo -ne "${YELLOW}[rce]${NC} echo '$DOMAIN' | dnsx -silent -recon -r '8.8.8.8' | tee '$OUTPUT/dns.txt'"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
-    echo -e "${YELLOW}[rce]${NC} Starting dig - ($OUTPUT/dig.txt)"
-    dig ANY @8.8.8.8 "$DOMAIN" | tee "$OUTPUT/dig.txt"
+    echo -e "${YELLOW}[rce]${NC} Starting dnsx - ($OUTPUT/dns.txt)"
+    echo "$DOMAIN" | dnsx -silent -recon -r '8.8.8.8' | tee "$OUTPUT/dns.txt"
+fi
+
+
+# === Subfinder === 
+echo 
+echo -ne "${YELLOW}[rce]${NC} subfinder -silent -d '$DOMAIN' -all | sort -uV | tee '$OUTPUT/domains.txt'"
+read -p " [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${YELLOW}[rce]${NC} Starting subfinder - ($OUTPUT/domains.txt)"
+    echo "$DOMAIN" | tee "$OUTPUT/domains.txt"
+    subfinder -silent -d "$DOMAIN" -all | sort -uV | tee "$OUTPUT/domains.txt"
+
+    echo 
+    echo -ne "${YELLOW}[rce]${NC} cat '$OUTPUT/domains.txt' | dnsx -silent -a -ptr -resp-only -r '8.8.8.8' | sort -uV | tee '$OUTPUT/ips.txt'"
+    read -p " [y/N] " res
+    res=${res,,}
+
+    if [[ "$res" == "y" ]]; then
+        echo -e "${YELLOW}[rce]${NC} Starting dnsx - ($OUTPUT/ips.txt)"
+        cat "$OUTPUT/domains.txt" | dnsx -silent -a -ptr -resp-only -r '8.8.8.8' | sort -uV | tee -a "$OUTPUT/ips.txt"
+    fi
 fi
 
 
@@ -152,39 +176,72 @@ if [[ "$res" == "y" ]]; then
 fi
 
 
-# === Qcrawl ===
-build_Qcrawl() {
-    qcrawl_cmd="Qcrawl -sf -ua '$USER_AGENT'"
-
-    if [ -n "$COOKIE" ]; then
-        qcrawl_cmd="$qcrawl_cmd -c '$COOKIE'"
-    fi
-
-    if [ -n "$HEADER" ]; then
-        qcrawl_cmd="$qcrawl_cmd -H '$HEADER'"
-    fi
-
-    qcrawl_cmd="$qcrawl_cmd -u https://$DOMAIN/ -o $OUTPUT/Qcrawl"
-    echo "$qcrawl_cmd"
-}
-
-echo
-qcrawl=$(build_Qcrawl)
-echo -ne "${YELLOW}[rce]${NC} $qcrawl"
+# === httpx enum ports ===
+echo 
+echo -ne "${YELLOW}[rce]${NC} httpx -u '$DOMAIN' -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 -silent | tee '$OUTPUT/technos.txt'"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
-    echo -e "${YELLOW}[rce]${NC} Starting Qcrawl - ($OUTPUT/Qcrawl.txt)"
-    bash -c "$qcrawl" | tee "$OUTPUT/Qcrawl.txt"
-    bash -c "$qcrawl" | tee "$OUTPUT/Qcrawl.txt"
+    echo -e "${YELLOW}[rce]${NC} Starting httpx - ($OUTPUT/technos.txt)"
+    httpx -u "$DOMAIN" -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 -silent | tee "$OUTPUT/technos.txt"
 fi
+
+
+# === katana ===
+echo 
+echo -ne "${YELLOW}[rce]${NC} katana -u '$DOMAIN' -jc -jsl -kf all -ps -fs fqdn -silent | sort -uV | tee '$OUTPUT/crawl.txt'"
+read -p " [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${YELLOW}[rce]${NC} Starting katana - ($OUTPUT/crawl.txt)"
+    katana -u "$DOMAIN" -js-crawl -jsluice -kf all -passive -fs fqdn -silent | sort -uV | tee "$OUTPUT/crawl.txt"
+
+    # === httpx to get more info on the crawling ===
+    echo 
+    echo -ne "${YELLOW}[rce]${NC} cat '$OUTPUT/crawl.txt' | httpx -status-code -cl -tech-detect -silent | tee '$OUTPUT/crawl.txt'"
+    read -p " [y/N] " res
+    res=${res,,}
+
+    if [[ "$res" == "y" ]]; then
+        echo -e "${YELLOW}[rce]${NC} Starting httpx+ - ($OUTPUT/crawl.txt)"
+        cat "$OUTPUT/crawl.txt" | httpx -status-code -cl -tech-detect -silent | tee "$OUTPUT/crawl.txt"
+    fi
+fi
+
+
+# === Qcrawl ===
+# build_Qcrawl() {
+#     qcrawl_cmd="Qcrawl -sf -ua '$USER_AGENT'"
+
+#     if [ -n "$COOKIE" ]; then
+#         qcrawl_cmd="$qcrawl_cmd -c '$COOKIE'"
+#     fi
+
+#     if [ -n "$HEADER" ]; then
+#         qcrawl_cmd="$qcrawl_cmd -H '$HEADER'"
+#     fi
+
+#     qcrawl_cmd="$qcrawl_cmd -u https://$DOMAIN/ -o $OUTPUT/Qcrawl"
+#     echo "$qcrawl_cmd"
+# }
+# qcrawl=$(build_Qcrawl)
+
+# echo
+# echo -ne "${YELLOW}[rce]${NC} $qcrawl"
+# read -p " [y/N] " res
+# res=${res,,}
+
+# if [[ "$res" == "y" ]]; then
+#     echo -e "${YELLOW}[rce]${NC} Starting Qcrawl - ($OUTPUT/Qcrawl.txt)"
+#     bash -c "$qcrawl" | tee "$OUTPUT/Qcrawl.txt"
+# fi
 
 
 # === ffuf ===
 build_ffuf() {
     local ffuf_cmd="ffuf -c -r -H 'User-Agent: $USER_AGENT'"
-
     if [ -n "$COOKIE" ]; then
         ffuf_cmd="$ffuf_cmd -b '$COOKIE'"
     fi
@@ -192,20 +249,17 @@ build_ffuf() {
     if [ -n "$HEADER" ]; then
         ffuf_cmd="$ffuf_cmd -H '$HEADER'"
     fi
-
     ffuf_cmd="$ffuf_cmd -w '$WORDLIST' -u 'https://$DOMAIN/FUZZ' -o '$OUTPUT/ffuf.json'"
     echo "$ffuf_cmd"
 }
-echo
 ffuf=$(build_ffuf)
 
+echo
 echo -ne "${YELLOW}[rce]${NC} $ffuf"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
-    echo -e "${YELLOW}[rce]${NC} Starting ffuf - ($OUTPUT/ffuf.txt)"
-    bash -c "$ffuf" | tee "$OUTPUT/ffuf.txt"
     echo -e "${YELLOW}[rce]${NC} Starting ffuf - ($OUTPUT/ffuf.txt)"
     bash -c "$ffuf" | tee "$OUTPUT/ffuf.txt"
 fi
