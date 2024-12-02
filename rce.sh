@@ -101,7 +101,8 @@ fi
 # echo -e "${BLUE}[rce]${NC} Interface set to '$INTERFACE'  (-i / --interface)"
 
 if [ -z "$OUTPUT" ]; then
-    OUTPUT="rce-$(echo "$DOMAIN" | md5sum | cut -c 1-16 )"
+    # OUTPUT="rce-$(echo "$DOMAIN" | md5sum | cut -c 1-16 )"
+    OUTPUT="rce-$(echo "$DOMAIN" | sed 's/\./-/g' )"
 fi
 mkdir -p "$(pwd)/$OUTPUT"
 echo -e "${BLUE}[rce]${NC} Output dir set to '$OUTPUT'  (-o / --output)"
@@ -190,7 +191,7 @@ fi
 
 # === katana ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} katana -u '$DOMAIN' -jc -jsl -kf all -ps -fs fqdn -silent | sort -uV | tee '$OUTPUT/crawl.txt'"
+echo -ne "${YELLOW}[rce]${NC} katana -u '$DOMAIN'  -js-crawl -jsluice -kf all -passive -fs fqdn -silent | sort -uV | tee '$OUTPUT/crawl.txt'"
 read -p " [y/N] " res
 res=${res,,}
 
