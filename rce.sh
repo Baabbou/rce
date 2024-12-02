@@ -120,13 +120,13 @@ fi
 
 # === NMAP ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} nmap -oN "$OUTPUT/nmap.txt" -sSV -p- '$DOMAIN'"
+echo -ne "${YELLOW}[rce]${NC} nmap -oN "$OUTPUT/nmap.txt" -sS -p- '$DOMAIN'"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
     echo -e "${YELLOW}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
-    sudo nmap -oN "$OUTPUT/nmap.txt" -sSV -p- "$DOMAIN"
+    sudo nmap -oN "$OUTPUT/nmap.txt" -sS -p- "$DOMAIN"
 fi
 
 
