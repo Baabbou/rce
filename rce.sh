@@ -77,7 +77,7 @@ echo -e """${BLUE}Royal Context Evaluator${NC} : a script for lazy hackers
     -ua | --user-agent : Precise a user-agent for HTTP tools.
     -c  | --cookie     : Precise a cookie for HTTP tools.
     -H  | --header     : Precise a header for HTTP tools (limited to one header).
-    -w  | --wordlist   : By default './dist/common-custom.txt'.
+    -w  | --wordlist   : By default '/opt/rce/dist/common-custom.txt'.
 
     -o | --output : Name of the output directory rce-<md5> by default.
 
@@ -114,7 +114,7 @@ fi
 
 if [ -z "$WORDLIST" ]; then
     # WORDLIST="$(which rce | sed -E 's/.* (.+)$/\1/')/dist/common-custom.txt"
-    WORDLIST="/home/tklingler/_Tests/RCE/dist/common-custom.txt"
+    WORDLIST="/opt/rce/dist/common-custom.txt"
 fi
 
 
