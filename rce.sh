@@ -191,13 +191,13 @@ fi
 
 # === katana ===
 echo 
-echo -ne "${YELLOW}[rce]${NC} katana -u '$DOMAIN'  -js-crawl -jsluice -kf all -passive -fs fqdn -silent | sort -uV | tee '$OUTPUT/crawl.txt'"
+echo -ne "${YELLOW}[rce]${NC} katana -u '$DOMAIN'  -js-crawl -jsluice -kf all -fs fqdn -silent | sort -uV | tee '$OUTPUT/crawl.txt'"
 read -p " [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
     echo -e "${YELLOW}[rce]${NC} Starting katana - ($OUTPUT/crawl.txt)"
-    katana -u "$DOMAIN" -js-crawl -jsluice -kf all -passive -fs fqdn -silent | sort -uV | tee "$OUTPUT/crawl.txt"
+    katana -u "$DOMAIN" -js-crawl -jsluice -kf all -fs fqdn -silent | sort -uV | tee "$OUTPUT/crawl.txt"
 
     # === httpx to get more info on the crawling ===
     echo 
