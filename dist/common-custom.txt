@@ -526,6 +526,7 @@ admin
 admin-admin
 admin-console
 admin-interface
+admin-page
 administrator-panel
 admin.cgi
 admin.php
@@ -3113,6 +3114,7 @@ phpadsnew
 phpbb
 phpbb2
 phpbb3
+cgi-bin/phpinfo.php
 phpinfo
 phpinfo.php
 phpinfos.php

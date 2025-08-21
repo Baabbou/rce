@@ -1,0 +1,251 @@
+#!/bin/bash
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            HELP=true
+            ;;
+        -d|--domain)
+            DOMAIN="$2"
+            shift 1
+            ;;
+        -o|--output)
+            OUTPUT="$2"
+            shift 1
+            ;;
+        -s|--speed)
+            SPEED="$2"
+            shift 1
+            ;;
+        -l|--light)
+            LIGHT=true
+            shift 1
+            ;;
+        -*|--*)
+            echo -e "${RED}[error]${NC} Unknown option $1"
+            exit 1
+            ;;
+        *)
+        ;;
+    esac
+    shift 1
+done
+
+if [ -n "$HELP" ]; then
+    echo -e """${BLUE}Royal Context Evaluator${NC} : a script for lazy hackers
+        ex: ${YELLOW}rce -d example.c0m${NC}
+
+        -h  | --help       : Print this.
+        -d  | --domain     : The domain where the script perform (required).
+        -o  | --output     : Name of the output directory _rce-<DOMAIN> by default.
+        -s  | --speed      : Speed of the scan. Can be 1: slow, 2: normal, or 3: quick.
+        -l  | --light      : Light version of scan, less acurate results.
+
+    Enjoy it little hacker ( ͡° ͜ʖ ͡°)"""
+    exit 1
+fi
+
+if [ "$UID" -ne 0 ]; then
+    echo -e "${RED}[error]${NC} You must run this as root user."
+    exit 1
+fi
+
+if [ -z "$DOMAIN" ]; then
+    echo -e "${RED}[error]${NC} Domain must be set with -d or --domain "
+    exit 1
+fi
+
+if [ -z "$OUTPUT" ]; then
+    OUTPUT="$(pwd)/_rce-$(echo "$DOMAIN" | sed 's/\./-/g' )"
+fi
+mkdir -p "$OUTPUT"
+echo -e "${BLUE}[rce]${NC} Output directory created at '$OUTPUT'"
+
+
+
+### === nmap start === ###
+if [[ $SPEED = "1" ]]; then
+    o_speed="-T1"
+elif [[ $SPEED = "3" ]]; then
+    o_speed="-T5"
+else
+    o_speed="-T3"
+fi
+
+if [[ $LIGHT = true ]]; then
+    o_add="--top-ports 10000"
+else
+    o_add="-p-"
+fi
+
+command="nmap -oN '$OUTPUT/nmap.txt' -sV -sS $o_add $o_speed '$DOMAIN'"
+
+echo
+echo -ne "${BLUE}[rce]${NC} ${GREEN}NMAP${NC}      ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" = "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
+    bash -c "$command"
+fi
+### === nmap stop === ###
+
+
+
+### ===  DNSX start === ###
+command="echo -n '$DOMAIN' | dnsx -silent -recon -r '9.9.9.9' | tee '$OUTPUT/dns.txt'"
+
+echo 
+echo -ne "${BLUE}[rce]${NC} ${GREEN}DNSX${NC}      ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting dnsx - ($OUTPUT/dns.txt)"
+    bash -c "$command"
+fi
+### ===  DNSX stop === ###
+
+
+
+### ===  subfinder start === ###
+command="subfinder -silent -d '$DOMAIN' -all | sort -uV | tee '$OUTPUT/domains.txt'"
+
+echo 
+echo -ne "${BLUE}[rce]${NC} ${GREEN}SUBFINDER${NC} ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting subfinder - ($OUTPUT/domains.txt)"
+    echo "$DOMAIN" | tee "$OUTPUT/domains.txt"
+    bash -c "$command"
+
+    ### === get IPs start === ###
+    command="cat '$OUTPUT/domains.txt' | dnsx -silent -a -ptr -resp-only -r '9.9.9.9' | sort -uV | tee '$OUTPUT/ips.txt'"
+
+    echo 
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}DNSX-bis${NC} ### $command"
+    read -p "  [y/N] " res
+    if [[ "$res" == "y" ]]; then
+        echo -e "${BLUE}[rce]${NC} Starting dnsx - ($OUTPUT/ips.txt)"
+        echo $(dig A +short "$DOMAIN" @9.9.9.9) | tee "$OUTPUT/ips.txt"
+        bash -c "$command"
+    fi
+    ### === get IPs stop === ###
+fi
+### ===  subfinder stop === ###
+
+
+
+### ===  cert start === ###
+command="openssl s_client -showcerts -connect '$DOMAIN:443' </dev/null  | tee '$OUTPUT/openssl.txt'"
+
+echo
+echo -ne "${BLUE}[rce]${NC} ${GREEN}OPENSSL${NC}   ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting openssl - ($OUTPUT/openssl.txt)"
+    bash -c "$command"
+fi
+### ===  cert stop === ###
+
+
+
+### ===  httpx start === ###
+if [[ $SPEED = "1" ]]; then
+    o_speed="-rl 3"
+else
+    o_speed="-rl 100"
+fi
+
+command="httpx -u '$DOMAIN' -sc -cl -ct -location -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 $o_speed -silent | tee '$OUTPUT/technos.txt'"
+
+echo
+echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX${NC}     ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting httpx - ($OUTPUT/web-info-scan.txt)"
+    bash -c "$command"
+fi
+### ===  httpx stop === ###
+
+
+
+### ===  katana start === ###
+if [[ $SPEED = "1" ]]; then
+    o_speed="-rl 3"
+else
+    o_speed="-rl 150"
+fi
+
+command="katana -u '$DOMAIN' -js-crawl -jsluice -kf all -timeout 5 -pc -fs fqdn -silent $o_speed | sort -uV | tee '$OUTPUT/crawl.txt'"
+
+echo
+echo -ne "${BLUE}[rce]${NC} ${GREEN}KATANA${NC}    ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting katana - ($OUTPUT/crawl.txt)"
+    bash -c "$command"
+
+    ### ===  httpx to get more info on the crawled pages start === ###
+    if [[ $SPEED = "1" ]]; then
+        o_speed="-rl 3"
+    else
+        o_speed="-rl 100"
+    fi
+    command="cat '$OUTPUT/crawl.txt' | httpx -sc -cl -ct -location -tech-detect -silent $o_speed | tee '$OUTPUT/crawl.txt'"
+
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX-Bis${NC} ### $command"
+    read -p "  [y/N] " res
+    res=${res,,}
+
+    if [[ "$res" == "y" ]]; then
+        echo -e "${BLUE}[rce]${NC} Starting httpx+ - ($OUTPUT/crawl.txt)"
+        bash -c "$command"
+    fi
+    ### ===  httpx to get more info on the crawled pages stop === ###
+fi
+### ===  katana stop === ###
+
+
+
+### ===  ffuf start === ###
+if [[ $SPEED = "1" ]]; then
+    o_speed="-t 2 -rate 2"
+elif [[ $SPEED = "3" ]]; then
+    o_speed="-t 40 -rate 1000"
+else
+    o_speed="-t 10 -rate 80"
+fi
+
+command="ffuf -c -r -o '$OUTPUT/ffuf.json' -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w '$(which $0 | sed 's/rce$/dist\/common-custom.txt/g')' $o_speed -u 'https://$DOMAIN/FUZZ' | tee '$OUTPUT/fuff.txt'"
+
+echo
+echo -ne "${BLUE}[rce]${NC} ${GREEN}FFUF${NC}      ### $command"
+read -p "  [y/N] " res
+res=${res,,}
+
+if [[ "$res" == "y" ]]; then
+    echo -e "${BLUE}[rce]${NC} Starting ffuf - ($OUTPUT/ffuf.txt)"
+    bash -c "$command"
+fi
+### ===  ffuf stop === ###
+
+
+echo -e "${BLUE}[rce]${NC} RCE done."
