@@ -70,33 +70,54 @@ echo -e "${BLUE}[rce]${NC} Output directory created at '$OUTPUT'"
 
 
 
-### === nmap start === ###
+### === network scan start === ###
 if [[ $SPEED = "1" ]]; then
-    o_speed="-T1"
-elif [[ $SPEED = "3" ]]; then
-    o_speed="-T5"
+    o_speed="-b 100"
 else
-    o_speed="-T3"
+    o_speed="-b 4500"
 fi
 
 if [[ $LIGHT = true ]]; then
-    o_add="--top-ports 10000"
-else
-    o_add="-p-"
+    o_add="-r 0-10000"
 fi
 
-command="nmap -oN '$OUTPUT/nmap.txt' -sV -sS $o_add $o_speed '$DOMAIN'"
+command="rustscan -g --no-banner $o_speed $o_add -a '$DOMAIN' | tee '$OUTPUT/rustscan.txt'"
 
 echo
-echo -ne "${BLUE}[rce]${NC} ${GREEN}NMAP${NC}      ### $command"
+echo -ne "${BLUE}[rce]${NC} ${GREEN}RUSTSCAN${NC}  ### $command"
 read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" = "y" ]]; then
-    echo -e "${BLUE}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
+    echo -e "${BLUE}[rce]${NC} Starting rustscan - ($OUTPUT/rustscan.txt)"
     bash -c "$command"
+
+    if [[ $SPEED = "1" ]]; then
+        o_speed="-T1"
+    elif [[ $SPEED = "3" ]]; then
+        o_speed="-T5"
+    else
+        o_speed="-T3"
+    fi
+
+    if [[ $LIGHT = true ]]; then
+        o_add="--top-ports 10000"
+    else
+        open_ports=$(grep "$HOST" "$OUTPUT/rustscan.txt" | sed -E 's/.*\[(.*)\].*/\1/')
+        o_add="-p $open_ports"
+    fi
+
+    command="nmap -oN '$OUTPUT/nmap.txt' -sS -sV -sC -O --open $o_add $o_speed '$DOMAIN'"
+
+    echo 
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}NMAP${NC} ### $command"
+    read -p "  [y/N] " res
+    if [[ "$res" = "y" ]]; then
+        echo -e "${BLUE}[rce]${NC} Starting nmap - ($OUTPUT/nmap.txt)"
+        bash -c "$command"
+    fi
 fi
-### === nmap stop === ###
+### === network scan stop === ###
 
 
 
@@ -247,5 +268,6 @@ if [[ "$res" == "y" ]]; then
 fi
 ### ===  ffuf stop === ###
 
+chmod -R 755 "$OUTPUT"
 
 echo -e "${BLUE}[rce]${NC} RCE done."
