@@ -72,42 +72,35 @@ echo -e "${BLUE}[rce]${NC} Output directory created at '$OUTPUT'"
 
 ### === network scan start === ###
 if [[ $SPEED = "1" ]]; then
-    o_speed="-b 100"
+    o_speed="--min-rate 1000 --max-rate 1000 --max-retries 0"
+elif [[ $SPEED = "3" ]]; then
+    o_speed="--min-rate 8000 --max-rate 8000 --max-retries 2"
 else
-    o_speed="-b 4500"
+    o_speed="--min-rate 7000 --max-rate 7000 --max-retries 1"
 fi
 
 if [[ $LIGHT = true ]]; then
-    o_add="-r 0-10000"
+    o_add="--top-port 10000"
+else
+    o_add="-p-"
 fi
 
-command="rustscan -g --no-banner $o_speed $o_add -a '$DOMAIN' | tee '$OUTPUT/rustscan.txt'"
+command="nmap -oG '$OUTPUT/open-ports.txt' $o_speed -sS --open $o_add  '$DOMAIN'"
 
 echo
-echo -ne "${BLUE}[rce]${NC} ${GREEN}RUSTSCAN${NC}  ### $command"
+echo -ne "${BLUE}[rce]${NC} ${GREEN}PORT SCAN${NC} ### $command"
 read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" = "y" ]]; then
-    echo -e "${BLUE}[rce]${NC} Starting rustscan - ($OUTPUT/rustscan.txt)"
+    echo -e "${BLUE}[rce]${NC} Starting nmap for open ports - ($OUTPUT/open-ports.txt)"
     bash -c "$command"
 
-    if [[ $SPEED = "1" ]]; then
-        o_speed="-T1"
-    elif [[ $SPEED = "3" ]]; then
-        o_speed="-T5"
-    else
-        o_speed="-T3"
-    fi
+    open_ports=$(egrep -o "[0-9]+/open" "$OUTPUT/open-ports.txt" | cut -d '/' -f1 | paste -sd ",")
+    o_add="-p $open_ports"
+    echo "$open_ports" > "$OUTPUT/open-ports.txt"
 
-    if [[ $LIGHT = true ]]; then
-        o_add="--top-ports 10000"
-    else
-        open_ports=$(grep "$HOST" "$OUTPUT/rustscan.txt" | sed -E 's/.*\[(.*)\].*/\1/')
-        o_add="-p $open_ports"
-    fi
-
-    command="nmap -oN '$OUTPUT/nmap.txt' -sS -sV -sC -O --open $o_add $o_speed '$DOMAIN'"
+    command="nmap -oN '$OUTPUT/nmap.txt' $o_speed -sS -sV -sC -A --open $o_add '$DOMAIN'"
 
     echo 
     echo -ne "${BLUE}[rce]${NC} ${GREEN}NMAP${NC} ### $command"
