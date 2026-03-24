@@ -94,7 +94,7 @@ res=${res,,}
 
 if [[ "$res" = "y" ]]; then
     echo -e "${BLUE}[rce]${NC} Starting nmap for open ports - ($OUTPUT/open-ports.txt)"
-    bash -c "$command" && chown doka:doka "$OUTPUT/open-ports.txt"
+    bash -c "$command" && chown "$USER:$USER" "$OUTPUT/open-ports.txt"
 
     open_ports=$(egrep -o "[0-9]+/open" "$OUTPUT/open-ports.txt" | cut -d '/' -f1 | paste -sd ",")
     o_add="-p $open_ports"
