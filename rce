@@ -52,10 +52,10 @@ if [ -n "$HELP" ]; then
     exit 1
 fi
 
-if [ "$UID" -ne 0 ]; then
-    echo -e "${RED}[error]${NC} You must run this as root user."
-    exit 1
-fi
+# if [ "$UID" -ne 0 ]; then
+#     echo -e "${RED}[error]${NC} You must run this as root user."
+#     exit 1
+# fi
 
 if [ -z "$DOMAIN" ]; then
     echo -e "${RED}[error]${NC} Domain must be set with -d or --domain "
@@ -63,7 +63,7 @@ if [ -z "$DOMAIN" ]; then
 fi
 
 if [ -z "$OUTPUT" ]; then
-    OUTPUT="$(pwd)/_rce-$(echo "$DOMAIN" | sed 's/\./-/g' )"
+    OUTPUT="./_rce-$(echo "$DOMAIN" | sed 's/\./-/g' )"
 fi
 mkdir -p "$OUTPUT"
 echo -e "${BLUE}[rce]${NC} Output directory created at '$OUTPUT'"
@@ -85,7 +85,7 @@ else
     o_add="-p-"
 fi
 
-command="nmap -oG '$OUTPUT/open-ports.txt' $o_speed -sS --open $o_add  '$DOMAIN'"
+command="sudo nmap -oG '$OUTPUT/open-ports.txt' $o_speed -sS --open $o_add  '$DOMAIN'"
 
 echo
 echo -ne "${BLUE}[rce]${NC} ${GREEN}PORT SCAN${NC} ### $command"
@@ -94,13 +94,13 @@ res=${res,,}
 
 if [[ "$res" = "y" ]]; then
     echo -e "${BLUE}[rce]${NC} Starting nmap for open ports - ($OUTPUT/open-ports.txt)"
-    bash -c "$command"
+    bash -c "$command" && chown doka:doka "$OUTPUT/open-ports.txt"
 
     open_ports=$(egrep -o "[0-9]+/open" "$OUTPUT/open-ports.txt" | cut -d '/' -f1 | paste -sd ",")
     o_add="-p $open_ports"
     echo "$open_ports" > "$OUTPUT/open-ports.txt"
 
-    command="nmap -oN '$OUTPUT/nmap.txt' $o_speed -sS -sV -sC -A --open $o_add '$DOMAIN'"
+    command="sudo nmap -oN '$OUTPUT/nmap.txt' $o_speed -sS -sV -sC -A --open $o_add '$DOMAIN'"
 
     echo 
     echo -ne "${BLUE}[rce]${NC} ${GREEN}NMAP${NC} ### $command"
@@ -131,7 +131,7 @@ fi
 
 
 ### ===  subfinder start === ###
-command="subfinder -silent -d '$DOMAIN' -all | sort -uV | tee '$OUTPUT/domains.txt'"
+command="subfinder -silent -d '$DOMAIN' -all | tee '$OUTPUT/domains.txt'"
 
 echo 
 echo -ne "${BLUE}[rce]${NC} ${GREEN}SUBFINDER${NC} ### $command"
@@ -144,7 +144,7 @@ if [[ "$res" == "y" ]]; then
     bash -c "$command"
 
     ### === get IPs start === ###
-    command="cat '$OUTPUT/domains.txt' | dnsx -silent -a -ptr -resp-only -r '9.9.9.9' | sort -uV | tee '$OUTPUT/ips.txt'"
+    command="cat '$OUTPUT/domains.txt' | dnsx -silent -a -ptr -resp-only -r '9.9.9.9' | tee '$OUTPUT/ips.txt'"
 
     echo 
     echo -ne "${BLUE}[rce]${NC} ${GREEN}DNSX-bis${NC} ### $command"
@@ -161,7 +161,7 @@ fi
 
 
 ### ===  cert start === ###
-command="openssl s_client -showcerts -connect '$DOMAIN:443' </dev/null  | tee '$OUTPUT/openssl.txt'"
+command="openssl s_client -showcerts -connect 'DOMAIN:PORT' </dev/null  | tee '$OUTPUT/openssl.txt'"
 
 echo
 echo -ne "${BLUE}[rce]${NC} ${GREEN}OPENSSL${NC}   ### $command"
@@ -169,6 +169,30 @@ read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
+
+    dom="$DOMAIN"
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}OPENSSL${NC}   ###### Domain? (default: $dom)"
+    read -p " [press enter to keep default] $> " res
+    res=${res,,}
+    
+    if [[ "$res" != "" ]]; then
+        dom="$res"
+    fi
+
+    port="443"
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}OPENSSL${NC}   ###### Port? (default: $port)"
+    read -p "  [press enter to keep default] $> " res
+    res=${res,,}
+
+    if [[ "$res" != "" ]]; then
+        port="$res"
+    fi
+
+    command="openssl s_client -showcerts -connect '$dom:$port' </dev/null  | tee '$OUTPUT/openssl.txt'"
+    echo -e "${BLUE}[rce]${NC} ${GREEN}OPENSSL${NC}   ###### $command"
+
     echo -e "${BLUE}[rce]${NC} Starting openssl - ($OUTPUT/openssl.txt)"
     bash -c "$command"
 fi
@@ -183,7 +207,8 @@ else
     o_speed="-rl 100"
 fi
 
-command="httpx -u '$DOMAIN' -sc -cl -ct -location -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 $o_speed -silent | tee '$OUTPUT/technos.txt'"
+command="httpx -u 'URL' -sc -cl -ct -location -tech-detect -timeout 5 $o_speed -silent | tee '$OUTPUT/technos.txt'"
+# command="httpx -u 'URL' -sc -cl -ct -location -tech-detect -p http:80,8000-8080,https:443,8443 -timeout 5 $o_speed -silent | tee '$OUTPUT/technos.txt'"
 
 echo
 echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX${NC}     ### $command"
@@ -191,6 +216,20 @@ read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
+
+    url="https://$DOMAIN"
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX${NC}     ###### Url? (default: $url)"
+    read -p " [press enter to keep default] $> " res
+    res=${res,,}
+
+    if [[ "$res" != "" ]]; then
+        url="$res"
+    fi
+
+    command="httpx -u '$url' -sc -cl -ct -location -tech-detect -timeout 5 $o_speed -silent | tee '$OUTPUT/technos.txt'"
+    echo -e "${BLUE}[rce]${NC} ${GREEN}HTTPX${NC}     ###### $command"
+
     echo -e "${BLUE}[rce]${NC} Starting httpx - ($OUTPUT/web-info-scan.txt)"
     bash -c "$command"
 fi
@@ -205,7 +244,7 @@ else
     o_speed="-rl 150"
 fi
 
-command="katana -u '$DOMAIN' -js-crawl -jsluice -kf all -timeout 5 -pc -fs fqdn -silent $o_speed | sort -uV | tee '$OUTPUT/crawl.txt'"
+command="katana -u 'URL' -js-crawl -jsluice -kf all -timeout 5 -pc -fs fqdn -silent $o_speed | tee '$OUTPUT/crawl.txt'"
 
 echo
 echo -ne "${BLUE}[rce]${NC} ${GREEN}KATANA${NC}    ### $command"
@@ -213,6 +252,20 @@ read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
+
+    url="https://$DOMAIN"
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}KATANA${NC}    ###### Url? (default: $url)"
+    read -p " [press enter to keep default] $> " res
+    res=${res,,}
+
+    if [[ "$res" != "" ]]; then
+        url="$res"
+    fi
+
+    command="katana -u '$url' -js-crawl -jsluice -kf all -timeout 5 -pc -fs fqdn -silent $o_speed | tee '$OUTPUT/crawl.txt'"
+    echo -e "${BLUE}[rce]${NC} ${GREEN}KATANA${NC}    ###### $command"
+
     echo -e "${BLUE}[rce]${NC} Starting katana - ($OUTPUT/crawl.txt)"
     bash -c "$command"
 
@@ -225,12 +278,12 @@ if [[ "$res" == "y" ]]; then
     command="cat '$OUTPUT/crawl.txt' | httpx -sc -cl -ct -location -tech-detect -silent $o_speed | tee '$OUTPUT/crawl.txt'"
 
     echo
-    echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX-Bis${NC} ### $command"
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}HTTPX${NC}     ### $command"
     read -p "  [y/N] " res
     res=${res,,}
 
     if [[ "$res" == "y" ]]; then
-        echo -e "${BLUE}[rce]${NC} Starting httpx+ - ($OUTPUT/crawl.txt)"
+        echo -e "${BLUE}[rce]${NC} Starting httpx - ($OUTPUT/crawl.txt)"
         bash -c "$command"
     fi
     ### ===  httpx to get more info on the crawled pages stop === ###
@@ -248,7 +301,7 @@ else
     o_speed="-t 10 -rate 80"
 fi
 
-command="ffuf -c -r -o '$OUTPUT/ffuf.json' -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w '$(which $0 | sed 's/rce$/dist\/common-custom.txt/g')' $o_speed -u 'https://$DOMAIN/FUZZ' | tee '$OUTPUT/fuff.txt'"
+command="ffuf -c -mc all -r -o '$OUTPUT/ffuf.json' -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w 'WORDLIST' $o_speed -u 'URL/FUZZ' | tee '$OUTPUT/fuff.txt'"
 
 echo
 echo -ne "${BLUE}[rce]${NC} ${GREEN}FFUF${NC}      ### $command"
@@ -256,6 +309,30 @@ read -p "  [y/N] " res
 res=${res,,}
 
 if [[ "$res" == "y" ]]; then
+
+    url="https://$DOMAIN"
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}FFUF${NC}      ###### Url? (default: $url)"
+    read -p " [press enter to keep default] $> " res
+    res=${res,,}
+    
+    if [[ "$res" != "" ]]; then
+        url="$res"
+    fi
+
+    wl=$(which $0 | sed 's/rce$/dist\/common-custom.txt/g')
+    echo
+    echo -ne "${BLUE}[rce]${NC} ${GREEN}FFUF${NC}      ###### Wordlist? (default: $wl)"
+    read -p " [press enter to keep default] $> " res
+    res=${res,,}
+
+    if [[ "$res" != "" ]]; then
+        wl="$res"
+    fi
+
+    command="ffuf -c -mc all -r -o '$OUTPUT/ffuf.json' -H 'User-Agent: Mozilla/5.0 Firefox/126.0' -w '$wl' $o_speed -u '$url/FUZZ' | tee '$OUTPUT/fuff.txt'"
+    echo -e "${BLUE}[rce]${NC} ${GREEN}FFUF${NC}      ###### $command"
+
     echo -e "${BLUE}[rce]${NC} Starting ffuf - ($OUTPUT/ffuf.txt)"
     bash -c "$command"
 fi
